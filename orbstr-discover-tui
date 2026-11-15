@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# orbstr-discover-tui — keyboard-first ORBSTR capability discovery for Omarchy.
+#
+# Prompts for a query, lists the capability announcements found, and shows the
+# details of the one you pick.
+#
+# DISCOVERY ONLY. This never calls a discovered endpoint. An ORBSTR listing is
+# an untrusted claim by its publisher; invoking one needs a trusted SSRF-safe
+# egress gateway and explicit approval. The only URL opened here is the
+# publisher's own homepage, and only if you ask for it.
+#
+# The rendering lives in orbstr-format.mjs; this wrapper is only the
+# interaction.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+find_file() {
+  local name="$1" candidate
+  for candidate in \
+    "$SCRIPT_DIR/$name" \
+    "$HOME/Work/orbstr-discover/$name" \
+    "$HOME/.local/lib/orbstr-discover/$name" \
+    "/usr/local/lib/orbstr-discover/$name"; do
+    [[ -f "$candidate" ]] && { echo "$candidate"; return 0; }
+  done
+  return 1
+}
+
+CLI="$(find_file orbstr-discover.mjs)" || CLI="$(command -v orbstr-discover || true)"
+[[ -n "$CLI" && -f "$CLI" ]] || {
+  echo "orbstr-discover: the tool is not installed." >&2
+  echo "Clone SIP-01/orbstr-discover or add orbstr-discover.mjs to PATH." >&2
+  exit 3
+}
+
+FORMAT="$(find_file orbstr-format.mjs)" || {
+  echo "orbstr-discover: orbstr-format.mjs is missing." >&2
+  exit 3
+}
+
+NODE="${NODE:-node}"
+
+open_url() {
+  local url="$1"
+  if command -v omarchy-launch-webapp >/dev/null 2>&1; then
+    omarchy-launch-webapp "$url" >/dev/null 2>&1 && return 0
+  fi
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 && return 0
+  fi
+  command -v gio >/dev/null 2>&1 && gio open "$url" >/dev/null 2>&1 && return 0
+  return 1
+}
+
+# --- prompt ---------------------------------------------------------------
+# gum needs a TTY: on a pipe or a non-interactive run it returns empty, so
+# fall back to a plain read when there is no terminal.
+if [[ -t 0 ]] && command -v gum >/dev/null 2>&1; then
+  source omarchy-restart-gum 2>/dev/null || true
+  QUERY="$(gum input --placeholder "role:tool proto:mcp …" --prompt "ORBSTR › " 2>/dev/null)"
+else
+  printf "ORBSTR › "
+  read -r QUERY
+fi
+
+[[ -z "${QUERY// }" ]] && exit 0
+
+RESULTS="$("$NODE" "$CLI" "$QUERY" --json 2>/dev/null)"
+if [[ -z "$RESULTS" ]]; then
+  echo "The relays could not be reached." >&2
+  exit 3
+fi
+
+echo
+"$NODE" "$FORMAT" list <<<"$RESULTS"
+LIST_STATUS=$?
+[[ $LIST_STATUS -eq 0 ]] || exit $LIST_STATUS
+echo
+
+# --- pick -----------------------------------------------------------------
+CHOICE=""
+if [[ -t 0 ]] && command -v gum >/dev/null 2>&1; then
+  CHOICE="$("$NODE" "$FORMAT" list <<<"$RESULTS" \
+    | gum choose --header "Which capability?" 2>/dev/null | head -1 | cut -d' ' -f1)"
+  [[ -z "$CHOICE" ]] && exit 0
+else
+  printf "Inspect which capability? [1-10] "
+  read -r CHOICE
+fi
+
+"$NODE" "$FORMAT" show "${CHOICE:-1}" <<<"$RESULTS"
+
+HOMEPAGE="$("$NODE" "$FORMAT" homepage "${CHOICE:-1}" <<<"$RESULTS")"
+if [[ -n "$HOMEPAGE" ]]; then
+  printf "Open the publisher's homepage? [y/N] "
+  read -r OPEN
+  if [[ "${OPEN:-}" =~ ^[Yy]$ ]]; then
+    open_url "$HOMEPAGE" && echo "Opened: $HOMEPAGE" || echo "$HOMEPAGE"
+  fi
+fi

@@ -1,0 +1,15 @@
+{
+  "name": "orbstr-discover",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "license": "MIT",
+  "description": "Discover ORBSTR capability announcements (Nostr kind 39698) from the terminal.",
+  "bin": { "orbstr-discover": "./orbstr-discover.mjs" },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  }
+}
