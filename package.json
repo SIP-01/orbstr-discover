@@ -7,7 +7,7 @@
   "description": "Discover ORBSTR capability announcements (Nostr kind 39698) from the terminal.",
   "bin": { "orbstr-discover": "./orbstr-discover.mjs" },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/orbstr-discover.test.mjs"
   },
   "devDependencies": {
     "ws": "^8.18.0"
