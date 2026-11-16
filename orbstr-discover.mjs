@@ -42,6 +42,7 @@ const NOSTR_QUERY = process.env.NOSTR_QUERY_JS;
 function findCore() {
   const candidates = [
     process.env.ORBSTR_CORE,
+    resolve(HERE, "lib/orbstr/capability.ts"),
     resolve(HERE, "../lib/orbstr/capability.ts"),
     resolve(HERE, "../repos/Orbstr/src/capability.ts"),
     resolve(process.env.HOME ?? "", "Work/repos/Orbstr/src/capability.ts"),
@@ -56,6 +57,7 @@ function findCore() {
 function findSuggest() {
   const candidates = [
     process.env.ORBSTR_SUGGEST,
+    resolve(HERE, "lib/orbstr/suggest.ts"),
     resolve(HERE, "../lib/orbstr/suggest.ts"),
     resolve(HERE, "../repos/Orbstr/src/suggest.ts"),
     resolve(process.env.HOME ?? "", "Work/repos/Orbstr/src/suggest.ts"),
