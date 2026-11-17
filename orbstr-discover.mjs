@@ -243,7 +243,8 @@ Flags:
   --core PATH     path to capability.ts
 
 Query grammar:
-  role:tool proto:mcp price:free  remaining words match name/summary/tags
+  role:tool cap:search cap:research proto:mcp price:free
+  every cap: value is required; remaining words match name/summary/tags
 
 Discovery is not invocation. This tool never calls a discovered endpoint.`;
 
@@ -329,6 +330,7 @@ async function main() {
       role: parsedQuery.role ?? null,
       proto: parsedQuery.proto ?? null,
       price: parsedQuery.price ?? null,
+      capabilities: parsedQuery.capabilities ?? [],
     },
     capabilities: matched.map((item) => ({
       id: item.id,
