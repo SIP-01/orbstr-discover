@@ -41,6 +41,7 @@ function capabilityEvent({
     tags: [
       ["d", id],
       ["v", "1"],
+      ["alt", `Capability: ${name}`],
       ["role", role],
       ...protocols.map((proto) => ["proto", proto]),
       ["price", price],
@@ -178,6 +179,9 @@ test("rejects a capability event with a missing d tag", async () => {
 
 test("marks a withdrawn capability as withdrawn", async () => {
   const event = capabilityEvent();
+  // A withdrawal replaces the active listing; it is not an active listing
+  // plus a status tag. The withdrawal payload carries only its tombstone fields.
+  event.tags = event.tags.filter((tag) => !["role", "proto", "price"].includes(tag[0]));
   event.tags.push(["status", "withdrawn"]);
   const relay = await startRelay(() => [event]);
   try {
