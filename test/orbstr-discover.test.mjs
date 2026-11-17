@@ -325,7 +325,7 @@ test("never calls a discovered endpoint", async () => {
   // to invoke it, this would produce a connection error in the output.
   const relay = await startRelay(() => [
     capabilityEvent({
-      endpoint: "https://127.0.0.1:9/should-never-be-called",
+      endpoint: "https://orbstr-discover-test.invalid/should-never-be-called",
     }),
   ]);
   try {
@@ -333,7 +333,7 @@ test("never calls a discovered endpoint", async () => {
     assert.ok(!result.stderr.includes("ECONNREFUSED"), "no endpoint call attempted");
     assert.ok(!result.stderr.includes("should-never-be-called"), "endpoint not fetched");
     const payload = JSON.parse(result.stdout);
-    assert.equal(payload.capabilities[0].endpoint, "https://127.0.0.1:9/should-never-be-called");
+    assert.equal(payload.capabilities[0].endpoint, "https://orbstr-discover-test.invalid/should-never-be-called");
   } finally {
     await relay.close();
   }
