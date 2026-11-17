@@ -239,6 +239,41 @@ test("proto: filter matches only that protocol", async () => {
   }
 });
 
+test("cap: filters require every requested capability tag", async () => {
+  const relay = await startRelay(() => [
+    capabilityEvent({ id: "a-search-research", topics: ["search", "research"] }),
+    capabilityEvent({ id: "b-search-only", topics: ["search"] }),
+    capabilityEvent({ id: "c-research-only", topics: ["research"] }),
+  ]);
+  try {
+    const result = await run(["--json", "role:tool", "cap:search", "cap:research"], {
+      ORBSTR_RELAYS: relay.url,
+    });
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.count, 1);
+    assert.equal(payload.capabilities[0].id, "a-search-research");
+    assert.deepEqual(payload.filters.capabilities, ["search", "research"]);
+  } finally {
+    await relay.close();
+  }
+});
+
+test("capability: is an alias and capability filters are case-insensitive", async () => {
+  const relay = await startRelay(() => [
+    capabilityEvent({ id: "a", topics: ["code-review"] }),
+    capabilityEvent({ id: "b", topics: ["research"] }),
+  ]);
+  try {
+    const result = await run(["--json", "capability:CODE-REVIEW"], { ORBSTR_RELAYS: relay.url });
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.count, 1);
+    assert.equal(payload.capabilities[0].id, "a");
+    assert.deepEqual(payload.filters.capabilities, ["code-review"]);
+  } finally {
+    await relay.close();
+  }
+});
+
 test("price: filter matches only that price", async () => {
   const relay = await startRelay(() => [
     capabilityEvent({ id: "a-free", price: "free" }),
