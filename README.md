@@ -81,14 +81,16 @@ Exit codes: `0` matches found, `1` no matches, `2` usage or tool error.
 ## Query grammar
 
 ```
-role:tool proto:mcp price:free weather radar
+role:tool cap:search cap:research proto:mcp price:free weather radar
 ```
 
 - `role:` — `agent`, `tool`, `model`, `api`, `compute`, `dataset`, `gateway`
 - `proto:` — `mcp`, `http`, `contextvm`, `nostr`, `a2a`
+- `cap:` / `capability:` — require the listing to include each named topic/capability tag
 - `price:` — `free`, `freemium`, `metered`, `subscription`, `prepaid`, `private`
 
-Remaining words match the listing name, summary and topic tags.
+All explicit filters are hard AND constraints. Multiple `cap:` terms must all
+match. Remaining words match the listing name, summary and topic tags.
 
 ## For agents
 
@@ -96,8 +98,8 @@ Remaining words match the listing name, summary and topic tags.
 
 ```json
 {
-  "query": "role:tool",
-  "filters": { "role": "tool", "proto": null, "price": null },
+  "query": "role:tool cap:search",
+  "filters": { "role": "tool", "proto": null, "price": null, "capabilities": ["search"] },
   "capabilities": [
     {
       "id": "orbstr-verify-test",

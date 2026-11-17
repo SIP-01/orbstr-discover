@@ -41,6 +41,7 @@ function capabilityEvent({
     tags: [
       ["d", id],
       ["v", "1"],
+      ["alt", `Capability: ${name}`],
       ["role", role],
       ...protocols.map((proto) => ["proto", proto]),
       ["price", price],
@@ -178,6 +179,9 @@ test("rejects a capability event with a missing d tag", async () => {
 
 test("marks a withdrawn capability as withdrawn", async () => {
   const event = capabilityEvent();
+  // A withdrawal replaces the active listing; it is not an active listing
+  // plus a status tag. The withdrawal payload carries only its tombstone fields.
+  event.tags = event.tags.filter((tag) => !["role", "proto", "price"].includes(tag[0]));
   event.tags.push(["status", "withdrawn"]);
   const relay = await startRelay(() => [event]);
   try {
@@ -239,6 +243,41 @@ test("proto: filter matches only that protocol", async () => {
   }
 });
 
+test("cap: filters require every requested capability tag", async () => {
+  const relay = await startRelay(() => [
+    capabilityEvent({ id: "a-search-research", topics: ["search", "research"] }),
+    capabilityEvent({ id: "b-search-only", topics: ["search"] }),
+    capabilityEvent({ id: "c-research-only", topics: ["research"] }),
+  ]);
+  try {
+    const result = await run(["--json", "role:tool", "cap:search", "cap:research"], {
+      ORBSTR_RELAYS: relay.url,
+    });
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.count, 1);
+    assert.equal(payload.capabilities[0].id, "a-search-research");
+    assert.deepEqual(payload.filters.capabilities, ["search", "research"]);
+  } finally {
+    await relay.close();
+  }
+});
+
+test("capability: is an alias and capability filters are case-insensitive", async () => {
+  const relay = await startRelay(() => [
+    capabilityEvent({ id: "a", topics: ["code-review"] }),
+    capabilityEvent({ id: "b", topics: ["research"] }),
+  ]);
+  try {
+    const result = await run(["--json", "capability:CODE-REVIEW"], { ORBSTR_RELAYS: relay.url });
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.count, 1);
+    assert.equal(payload.capabilities[0].id, "a");
+    assert.deepEqual(payload.filters.capabilities, ["code-review"]);
+  } finally {
+    await relay.close();
+  }
+});
+
 test("price: filter matches only that price", async () => {
   const relay = await startRelay(() => [
     capabilityEvent({ id: "a-free", price: "free" }),
@@ -286,7 +325,7 @@ test("never calls a discovered endpoint", async () => {
   // to invoke it, this would produce a connection error in the output.
   const relay = await startRelay(() => [
     capabilityEvent({
-      endpoint: "https://127.0.0.1:9/should-never-be-called",
+      endpoint: "https://orbstr-discover-test.invalid/should-never-be-called",
     }),
   ]);
   try {
@@ -294,7 +333,7 @@ test("never calls a discovered endpoint", async () => {
     assert.ok(!result.stderr.includes("ECONNREFUSED"), "no endpoint call attempted");
     assert.ok(!result.stderr.includes("should-never-be-called"), "endpoint not fetched");
     const payload = JSON.parse(result.stdout);
-    assert.equal(payload.capabilities[0].endpoint, "https://127.0.0.1:9/should-never-be-called");
+    assert.equal(payload.capabilities[0].endpoint, "https://orbstr-discover-test.invalid/should-never-be-called");
   } finally {
     await relay.close();
   }
